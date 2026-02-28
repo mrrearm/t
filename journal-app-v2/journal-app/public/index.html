@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>The Daily Journal</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=PT+Serif:ital,wght@0,400;0,700;1,400&family=Oswald:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    html,body,#root{min-height:100vh;background:#fdf8f0}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-track{background:#f0e8d8}
+    ::-webkit-scrollbar-thumb{background:#ccc}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ── API ─────────────────────────────────────────────────────────────
+const API = {
+  base: "/api",
+  async get(path) {
+    const r = await fetch(this.base + path);
+    return r.json();
+  },
+  async post(path, body) {
+    const r = await fetch(this.base + path, {
+      method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+    });
+    return r.json();
+  },
+  async put(path, body) {
+    const r = await fetch(this.base + path, {
+      method: "PUT", headers: {"Content-Type":"application/json"}, body: JSON.stringify(body)
+    });
+    return r.json();
+  },
+  async del(path) {
+    const r = await fetch(this.base + path, { method: "DELETE" });
+    return r.json();
+  }
+};
+
+// ── Helpers ─────────────────────────────────────────────────────────
+function formatDate(dateStr) {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString("en-GB", { weekday:"long", day:"numeric", month:"long", year:"numeric" }).toUpperCase();
+}
+function htmlToText(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.textContent || div.innerText || "";
+}
+
+// ── PDF Generator (pure JS, no deps) ────────────────────────────────
+function makePDF(post) {
+  const enc = s => (s||"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+  const wrap = (text, max) => {
+    const words = (text||"").split(" "); const out = []; let cur = "";
+    words.forEach(w => {
+      if ((cur+" "+w).trim().length > max) { if(cur) out.push(cur.trim()); cur=w; }
+      else cur = (cur+" "+w).trim();
+    });
+    if(cur) out.push(cur.trim());
+    return out.length ? out : [""];
+  };
+  const bodyText = htmlToText(post.body);
+  const title = (post.headline||"").toUpperCase();
+  const author = (post.author||"YOUR CORRESPONDENT").toUpperCase();
+  const dateStr = formatDate(post.date);
+  const deck = post.deck||"";
+  const cat = (post.category||"EXCLUSIVE").toUpperCase();
+  const sl = [];
+  const PW=595,PH=842,ML=55,MR=55,MT=780;
+  let y=MT;
+  const lh=sz=>sz*1.35;
+  const txt=(x,yl,sz,bold,text)=>{
+    sl.push("BT"); sl.push(`/${bold?"F2":"F1"} ${sz} Tf`);
+    sl.push(`${x} ${yl} Td`); sl.push(`(${enc(text)}) Tj`); sl.push("ET");
+  };
+  sl.push("0.05 0.05 0.05 RG"); sl.push("2 w");
+  sl.push(`${ML} ${y} m ${PW-MR} ${y} l S`); y-=3;
+  sl.push("0.5 w"); sl.push(`${ML} ${y} m ${PW-MR} ${y} l S`); y-=14;
+  txt(ML,y,26,true,"The Daily Journal"); y-=lh(26);
+  txt(ML+55,y,9,false,'"All the News That\'s Fit to Write"'); y-=lh(9)+2;
+  sl.push("0.5 w"); sl.push(`${ML} ${y} m ${PW-MR} ${y} l S`); y-=3;
+  sl.push("2 w"); sl.push(`${ML} ${y} m ${PW-MR} ${y} l S`); y-=8;
+  txt(ML,y,7.5,false,dateStr); y-=lh(7.5)+4;
+  sl.push("0.8 0 0 rg"); sl.push(`${ML} ${y-3} ${cat.length*5.2+10} 13 re f`);
+  sl.push("1 1 1 rg"); txt(ML+5,y,8,true,cat); sl.push("0 0 0 rg"); y-=lh(8)+6;
+  const hl=wrap(title,46);
+  hl.forEach(l=>{txt(ML,y,18,true,l);y-=lh(18);}); y-=4;
+  if(deck){
+    sl.push("0.8 0 0 RG"); sl.push("2 w");
+    const dw=wrap(deck,60);
+    sl.push(`${ML} ${y+lh(11)} m ${ML} ${y-lh(11)*(dw.length-1)-4} l S`);
+    sl.push("0 0 0 RG");
+    dw.forEach(l=>{txt(ML+8,y,11,false,l);y-=lh(11);}); y-=4;
+  }
+  sl.push("0.7 w"); sl.push(`${ML} ${y} m ${PW-MR} ${y} l S`); y-=7;
+  txt(ML,y,7.5,false,`BY ${author}   .   ${dateStr}`); y-=lh(7.5)+2;
+  sl.push(`${ML} ${y} m ${PW-MR} ${y} l S`); y-=10;
+  const colW=(PW-ML-MR-10)/2, col1X=ML, col2X=ML+colW+10;
+  const bw=wrap(bodyText,42), maxY=60, lhB=lh(10);
+  const lpc=Math.floor((y-maxY)/lhB);
+  const c1=bw.slice(0,lpc), c2=bw.slice(lpc,lpc*2);
+  c1.forEach(l=>{txt(col1X,y,10,false,l);y-=lhB;});
+  const c2sy=MT-lh(26)-3-lh(9)-2-3-3-8-lh(7.5)-4
+    -hl.length*lh(18)-4-(deck?(wrap(deck,60).length*lh(11)+4):0)-7-lh(7.5)-2-10;
+  c2.forEach((l,i)=>{txt(col2X,c2sy-i*lhB,10,false,l);});
+  sl.push("0.6 w"); sl.push(`${ML} 45 m ${PW-MR} 45 l S`);
+  txt(ML,35,7.5,false,"The Daily Journal");
+  txt(PW-MR-80,35,7.5,false,dateStr);
+  const stream=sl.join("\n");
+  const parts=[]; const off=[]; const add=s=>parts.push(s);
+  add("%PDF-1.4"); add("%\xE2\xE3\xCF\xD3");
+  off[1]=parts.join("\n").length+1; add("1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj");
+  off[2]=parts.join("\n").length+1; add("2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj");
+  off[3]=parts.join("\n").length+1;
+  add(`3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PW} ${PH}] /Contents 5 0 R /Resources << /Font << /F1 6 0 R /F2 7 0 R >> >> >>\nendobj`);
+  off[4]=parts.join("\n").length+1; add("4 0 obj\n<< >>\nendobj");
+  off[5]=parts.join("\n").length+1; add(`5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj`);
+  off[6]=parts.join("\n").length+1; add("6 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>\nendobj");
+  off[7]=parts.join("\n").length+1; add("7 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>\nendobj");
+  const xo=parts.join("\n").length+1;
+  add("xref\n0 8\n0000000000 65535 f ");
+  [1,2,3,4,5,6,7].forEach(i=>add(String(off[i]).padStart(10,"0")+" 00000 n "));
+  add(`trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n${xo}\n%%EOF`);
+  return parts.join("\n");
+}
+
+function saveToPDF(post) {
+  const blob = new Blob([makePDF(post)], {type:"application/pdf"});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href=url; a.download=(post.headline.slice(0,40).replace(/[^a-z0-9]/gi,"_")||"journal")+".pdf";
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);},1000);
+}
+
+const CATEGORIES = ["ALL","BREAKING","EXCLUSIVE","OPINION","WORLD","SPORT","POLITICS","SOCIETY","LIFE"];
+
+// ── App ──────────────────────────────────────────────────────────────
+function App() {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [view, setView] = useState("list");
+  const [current, setCurrent] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [catFilter, setCatFilter] = useState("ALL");
+  const [stats, setStats] = useState(null);
+  const editorRef = useRef(null);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [form, setForm] = useState({headline:"",deck:"",author:"",category:"EXCLUSIVE",body:""});
+
+  const showToast = (msg, type="ok") => { setToast({msg,type}); setTimeout(()=>setToast(null),3000); };
+
+  const loadPosts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (catFilter !== "ALL") params.set("category", catFilter);
+      if (searchTerm) params.set("search", searchTerm);
+      const data = await API.get("/posts?" + params);
+      if (data.ok) setPosts(data.posts);
+      else showToast("⚠ Error loading posts", "err");
+    } catch(e) {
+      showToast("⚠ Cannot reach server", "err");
+    }
+    setLoading(false);
+  }, [catFilter, searchTerm]);
+
+  const loadStats = useCallback(async () => {
+    try { const d = await API.get("/stats"); if(d.ok) setStats(d); } catch(_){}
+  }, []);
+
+  useEffect(() => { loadPosts(); }, [loadPosts]);
+  useEffect(() => { loadStats(); }, []);
+
+  const openNew = () => {
+    setForm({headline:"",deck:"",author:"",category:"EXCLUSIVE",body:""});
+    setCurrent(null); setView("edit");
+    setTimeout(()=>{ if(editorRef.current) editorRef.current.innerHTML=""; },50);
+  };
+
+  const openEdit = (post) => {
+    setForm({headline:post.headline,deck:post.deck||"",author:post.author||"",category:post.category||"EXCLUSIVE",body:post.body});
+    setCurrent(post); setView("edit");
+    setTimeout(()=>{ if(editorRef.current) editorRef.current.innerHTML=post.body; },50);
+  };
+
+  const openRead = (post) => { setCurrent(post); setView("read"); };
+
+  const savePost = async () => {
+    if (!form.headline.trim()) { showToast("⚠ Headline required!", "err"); return; }
+    const body = editorRef.current ? editorRef.current.innerHTML : form.body;
+    setSaving(true);
+    try {
+      let data;
+      if (current) {
+        data = await API.put(`/posts/${current.id}`, {...form, body});
+      } else {
+        data = await API.post("/posts", {...form, body});
+      }
+      if (data.ok) {
+        showToast("✓ Story published!");
+        await loadPosts();
+        await loadStats();
+        setView("list");
+      } else {
+        showToast("⚠ "+data.error, "err");
+      }
+    } catch(e) {
+      showToast("⚠ Server error", "err");
+    }
+    setSaving(false);
+  };
+
+  const deletePost = async (id) => {
+    if (!confirm("Delete this story permanently?")) return;
+    try {
+      const data = await API.del(`/posts/${id}`);
+      if (data.ok) {
+        showToast("Story deleted.");
+        await loadPosts();
+        await loadStats();
+        setView("list");
+      }
+    } catch(e) { showToast("⚠ Delete failed", "err"); }
+  };
+
+  const execCmd = (cmd, val) => { document.execCommand(cmd, false, val||null); editorRef.current?.focus(); };
+
+  const featured=posts[0], secondary=posts.slice(1,3), rest=posts.slice(3);
+
+  return (
+    <>
+      <style>{`
+        body{background:#fdf8f0}
+        .app{min-height:100vh;background:#fdf8f0;color:#0d0d0d;font-family:'PT Serif',serif}
+        /* MASTHEAD */
+        .mhead{background:#fdf8f0;border-bottom:8px double #0d0d0d;padding:14px 16px 10px}
+        .mhead-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px}
+        .minfo{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;color:#888}
+        .new-btn{background:#cc0000;color:#fff;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-size:13px;font-weight:700;letter-spacing:2px;padding:10px 22px;text-transform:uppercase;transition:background .15s;white-space:nowrap;flex-shrink:0}
+        .new-btn:hover{background:#ff1a1a}
+        .paper-title{font-family:'UnifrakturMaguntia',cursive;font-size:clamp(36px,9vw,88px);line-height:1;text-align:center;color:#0d0d0d}
+        .paper-sub{text-align:center;font-family:'Playfair Display',serif;font-style:italic;font-size:12px;color:#888;margin-top:4px;letter-spacing:1px}
+        /* STATS BAR */
+        .stats-bar{background:#0d0d0d;color:#aaa;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;padding:5px 16px;display:flex;gap:20px;overflow-x:auto;scrollbar-width:none}
+        .stats-bar::-webkit-scrollbar{display:none}
+        .stats-bar span{white-space:nowrap}
+        .stats-bar strong{color:#fff}
+        /* CATS */
+        .cats{background:#1a1a1a;display:flex;overflow-x:auto;scrollbar-width:none;border-bottom:3px solid #cc0000}
+        .cats::-webkit-scrollbar{display:none}
+        .cats button{background:none;border:none;color:#aaa;font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;padding:9px 16px;cursor:pointer;white-space:nowrap;text-transform:uppercase;transition:all .15s;flex-shrink:0}
+        .cats button:hover,.cats button.on{color:#fff;background:#cc0000}
+        /* SEARCH */
+        .sbar{background:#f0e8d8;border-bottom:1px solid #ccc;padding:8px 16px;display:flex;align-items:center;gap:10px}
+        .sbar span{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;color:#888;white-space:nowrap}
+        .sbar input{flex:1;border:1px solid #ccc;padding:6px 10px;font-family:'PT Serif',serif;font-size:13px;background:#fff;outline:none}
+        .sbar input:focus{border-color:#cc0000}
+        .sbar-clr{background:none;border:1px solid #999;color:#666;padding:4px 10px;font-family:'Oswald',sans-serif;font-size:10px;cursor:pointer;letter-spacing:1px}
+        /* DATE */
+        .dbar{text-align:center;padding:6px;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;color:#999;border-bottom:1px solid #e0d4c0;margin-bottom:20px}
+        /* CONTENT */
+        .content{max-width:1100px;margin:0 auto;padding:0 14px 60px}
+        /* LOADING */
+        .loading{text-align:center;padding:60px;font-family:'Oswald',sans-serif;letter-spacing:3px;font-size:12px;color:#999}
+        .loading::after{content:"";display:inline-block;width:20px;height:20px;border:2px solid #ccc;border-top-color:#cc0000;border-radius:50%;animation:spin .8s linear infinite;margin-left:10px;vertical-align:middle}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        /* EMPTY */
+        .empty{text-align:center;padding:80px 20px}
+        .empty .drop{font-family:'UnifrakturMaguntia',cursive;font-size:72px;color:#cc0000}
+        .empty h2{font-family:'Playfair Display',serif;font-size:26px;margin:12px 0 8px}
+        .empty p{color:#666;font-size:15px;margin-bottom:20px}
+        /* TAGS */
+        .tag{display:inline-block;background:#cc0000;color:#fff;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;padding:2px 8px;margin-bottom:8px;text-transform:uppercase}
+        /* FEATURED */
+        .feat{cursor:pointer;border-bottom:3px double #0d0d0d;padding-bottom:20px;margin-bottom:20px}
+        .feat:hover .feat-h{color:#cc0000}
+        .feat-h{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(26px,5vw,52px);text-transform:uppercase;line-height:1.05;margin-bottom:10px;transition:color .2s}
+        .feat-d{font-family:'Playfair Display',serif;font-style:italic;font-size:17px;color:#444;margin-bottom:10px;border-left:4px solid #cc0000;padding-left:12px}
+        .meta{font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;color:#888;margin-bottom:10px}
+        .prev{font-size:15px;line-height:1.7;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden;text-align:justify}
+        /* SECONDARY */
+        .sec-row{display:grid;grid-template-columns:1fr 1fr;gap:20px;border-bottom:2px solid #0d0d0d;padding-bottom:20px;margin-bottom:20px}
+        @media(max-width:580px){.sec-row{grid-template-columns:1fr}}
+        .sec{cursor:pointer;padding-right:16px;border-right:1px solid #e0d4c0}
+        .sec:last-child{border-right:none;padding-right:0}
+        .sec:hover .sec-h{color:#cc0000}
+        .sec-h{font-family:'Playfair Display',serif;font-weight:700;font-size:clamp(16px,3vw,22px);text-transform:uppercase;line-height:1.2;margin:6px 0;transition:color .2s}
+        /* ORNAMENT */
+        .orn{text-align:center;color:#bbb;font-size:16px;margin:16px 0;letter-spacing:8px}
+        /* GRID */
+        .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:16px}
+        .card{cursor:pointer;border-top:3px solid #0d0d0d;padding-top:10px;transition:transform .15s}
+        .card:hover{transform:translateY(-2px)}
+        .card:hover .card-h{color:#cc0000}
+        .card-h{font-family:'Playfair Display',serif;font-weight:700;font-size:16px;text-transform:uppercase;line-height:1.2;margin:6px 0;transition:color .2s}
+        .card-p{font-size:13px;line-height:1.6;color:#555;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+        /* READ */
+        .read{max-width:720px;margin:0 auto;padding:20px 14px 60px}
+        .back{background:none;border:none;cursor:pointer;font-family:'Oswald',sans-serif;font-size:12px;letter-spacing:2px;color:#cc0000;padding:0 0 16px;display:inline-flex;align-items:center;gap:6px;text-transform:uppercase}
+        .back:hover{text-decoration:underline}
+        .read-h{font-family:'Playfair Display',serif;font-weight:900;font-size:clamp(26px,5vw,48px);text-transform:uppercase;line-height:1.05;margin-bottom:12px;border-bottom:4px double #0d0d0d;padding-bottom:12px}
+        .read-d{font-family:'Playfair Display',serif;font-style:italic;font-size:18px;color:#444;margin-bottom:12px;border-left:4px solid #cc0000;padding-left:12px}
+        .read-body{font-size:16px;line-height:1.9;text-align:justify;column-count:2;column-gap:28px}
+        @media(max-width:580px){.read-body{column-count:1}}
+        .read-body p{margin-bottom:12px}
+        .acts{display:flex;gap:10px;margin:18px 0;flex-wrap:wrap}
+        /* BUTTONS */
+        .btn{font-family:'Oswald',sans-serif;font-size:11px;letter-spacing:2px;text-transform:uppercase;padding:9px 18px;cursor:pointer;border:none;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .btn-r{background:#cc0000;color:#fff}.btn-r:hover:not(:disabled){background:#aa0000}
+        .btn-dk{background:#0d0d0d;color:#fff}.btn-dk:hover:not(:disabled){background:#333}
+        .btn-o{background:none;border:2px solid #cc0000;color:#cc0000}.btn-o:hover{background:#cc0000;color:#fff}
+        /* EDIT */
+        .edit{max-width:820px;margin:0 auto;padding:20px 14px 60px}
+        .edit-hd{font-family:'UnifrakturMaguntia',cursive;font-size:28px;color:#cc0000;text-align:center;border-bottom:4px double #0d0d0d;padding-bottom:10px;margin-bottom:22px}
+        .flbl{display:block;font-family:'Oswald',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#888;margin-bottom:4px}
+        .fg{margin-bottom:16px}
+        .fg input,.fg select{width:100%;border:1px solid #ccc;padding:10px 12px;font-family:'PT Serif',serif;font-size:15px;background:#fff;outline:none}
+        .fg input:focus,.fg select:focus{border-color:#cc0000}
+        .fh{font-family:'Playfair Display',serif!important;font-size:22px!important;font-weight:900!important;text-transform:uppercase}
+        .frow{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+        @media(max-width:580px){.frow{grid-template-columns:1fr}}
+        .tbar{display:flex;gap:4px;background:#f0e8d8;border:1px solid #ccc;border-bottom:none;padding:6px 8px;flex-wrap:wrap}
+        .tbtn{background:#fff;border:1px solid #ccc;width:30px;height:28px;cursor:pointer;font-size:14px;transition:all .1s;display:flex;align-items:center;justify-content:center;font-family:'PT Serif',serif}
+        .tbtn:hover{background:#cc0000;color:#fff;border-color:#cc0000}
+        .tsep{width:1px;background:#ccc;margin:2px 4px}
+        .reditor{border:1px solid #ccc;min-height:280px;padding:16px;font-size:15px;line-height:1.8;font-family:'PT Serif',serif;background:#fff;text-align:justify;outline:none}
+        .reditor:focus{border-color:#cc0000;box-shadow:0 0 0 2px #cc000033}
+        .reditor:empty::before{content:attr(data-ph);color:#bbb;font-style:italic}
+        /* TOAST */
+        .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);color:#fff;font-family:'Oswald',sans-serif;letter-spacing:2px;font-size:12px;padding:10px 24px;z-index:9999;animation:fup .25s ease;white-space:nowrap;pointer-events:none}
+        .toast.ok{background:#0d0d0d;box-shadow:4px 4px 0 #cc0000}
+        .toast.err{background:#cc0000;box-shadow:4px 4px 0 #0d0d0d}
+        @keyframes fup{from{opacity:0;transform:translateX(-50%) translateY(10px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+      `}</style>
+
+      <div className="app">
+        {/* ── MASTHEAD ── */}
+        <header className="mhead">
+          <div className="mhead-top">
+            <span className="minfo">EST. {new Date().getFullYear()} · YOUR CHRONICLE</span>
+            <button className="new-btn" onClick={openNew}>✒ NEW STORY</button>
+            <span className="minfo">
+              {new Date().toLocaleDateString("en-GB",{day:"2-digit",month:"short",year:"numeric"}).toUpperCase()}
+              {stats ? ` · ${stats.total} STORIES` : ""}
+            </span>
+          </div>
+          <div className="paper-title">The Daily Journal</div>
+          <div className="paper-sub">"All the News That's Fit to Write"</div>
+        </header>
+
+        {/* ── STATS BAR ── */}
+        {stats && stats.byCategory?.length > 0 && (
+          <div className="stats-bar">
+            <span>ARCHIVE: <strong>{stats.total}</strong> STORIES</span>
+            {stats.byCategory.map(c => (
+              <span key={c.category}>{c.category}: <strong>{c.n}</strong></span>
+            ))}
+          </div>
+        )}
+
+        {/* ── CATEGORIES ── */}
+        <div className="cats">
+          {CATEGORIES.map(c=>(
+            <button key={c} className={catFilter===c?"on":""} onClick={()=>setCatFilter(c)}>{c}</button>
+          ))}
+        </div>
+
+        {/* ── SEARCH ── */}
+        <div className="sbar">
+          <span>SEARCH:</span>
+          <input value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} placeholder="Search headlines and stories…"/>
+          {searchTerm && <button className="sbar-clr" onClick={()=>setSearchTerm("")}>CLEAR</button>}
+        </div>
+
+        <div className="content">
+
+          {/* ── LIST ── */}
+          {view==="list" && (
+            <>
+              <div className="dbar">{formatDate(new Date().toISOString())} · {posts.length} STOR{posts.length!==1?"IES":"Y"}</div>
+              {loading ? (
+                <div className="loading">LOADING THE PRESSES</div>
+              ) : posts.length===0 ? (
+                <div className="empty">
+                  <div className="drop">✒</div>
+                  <h2>No Stories Yet</h2>
+                  <p>Your journal awaits. Click <strong>✒ NEW STORY</strong> to file your first report.</p>
+                  <button className="btn btn-r" style={{marginTop:16,fontSize:14,padding:"12px 28px"}} onClick={openNew}>✒ WRITE FIRST STORY</button>
+                </div>
+              ) : (
+                <>
+                  {featured && (
+                    <div className="feat" onClick={()=>openRead(featured)}>
+                      <span className="tag">{featured.category||"EXCLUSIVE"}</span>
+                      <h1 className="feat-h">{featured.headline}</h1>
+                      {featured.deck && <div className="feat-d">{featured.deck}</div>}
+                      <div className="meta">BY {(featured.author||"YOUR CORRESPONDENT").toUpperCase()} · {formatDate(featured.date)}</div>
+                      <div className="prev" dangerouslySetInnerHTML={{__html:featured.body}}/>
+                    </div>
+                  )}
+                  {secondary.length>0 && (
+                    <div className="sec-row">
+                      {secondary.map(p=>(
+                        <div key={p.id} className="sec" onClick={()=>openRead(p)}>
+                          <span className="tag">{p.category||"EXCLUSIVE"}</span>
+                          <h2 className="sec-h">{p.headline}</h2>
+                          {p.deck && <div style={{fontStyle:"italic",fontSize:"13px",color:"#555",marginBottom:6,borderLeft:"3px solid #cc0000",paddingLeft:8}}>{p.deck}</div>}
+                          <div className="meta">BY {(p.author||"CORRESPONDENT").toUpperCase()} · {formatDate(p.date)}</div>
+                          <div className="prev" dangerouslySetInnerHTML={{__html:p.body}}/>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {rest.length>0 && (
+                    <>
+                      <div className="orn">✦ ✦ ✦</div>
+                      <div className="grid">
+                        {rest.map(p=>(
+                          <div key={p.id} className="card" onClick={()=>openRead(p)}>
+                            <span className="tag">{p.category||"EXCLUSIVE"}</span>
+                            <h3 className="card-h">{p.headline}</h3>
+                            <div className="meta" style={{marginBottom:6}}>{formatDate(p.date)}</div>
+                            <div className="card-p" dangerouslySetInnerHTML={{__html:p.body}}/>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* ── READ ── */}
+          {view==="read" && current && (
+            <div className="read">
+              <button className="back" onClick={()=>setView("list")}>← FRONT PAGE</button>
+              <span className="tag">{current.category||"EXCLUSIVE"}</span>
+              <h1 className="read-h">{current.headline}</h1>
+              {current.deck && <div className="read-d">{current.deck}</div>}
+              <div className="meta" style={{marginBottom:16}}>
+                BY {(current.author||"YOUR CORRESPONDENT").toUpperCase()} · {formatDate(current.date)}
+                {current.updated_at!==current.date && <span style={{marginLeft:8,color:"#bbb"}}>· UPDATED {formatDate(current.updated_at)}</span>}
+              </div>
+              <div className="acts">
+                <button className="btn btn-dk" onClick={()=>openEdit(current)}>✏ EDIT</button>
+                <button className="btn btn-r" onClick={()=>{try{saveToPDF(current);showToast("✓ PDF downloaded!");}catch(e){showToast("⚠ PDF error","err");}}}>⬇ SAVE PDF</button>
+                <button className="btn btn-o" onClick={()=>deletePost(current.id)}>✕ DELETE</button>
+              </div>
+              <div className="read-body" dangerouslySetInnerHTML={{__html:current.body}}/>
+            </div>
+          )}
+
+          {/* ── EDIT ── */}
+          {view==="edit" && (
+            <div className="edit">
+              <div className="edit-hd">{current?"Edit Your Story":"File a New Report"}</div>
+              <div className="fg">
+                <label className="flbl">Headline *</label>
+                <input className="fh" placeholder="SENSATIONAL HEADLINE IN CAPS…" value={form.headline} onChange={e=>setForm(f=>({...f,headline:e.target.value}))}/>
+              </div>
+              <div className="fg">
+                <label className="flbl">Standfirst / Deck</label>
+                <input placeholder="One-line italic summary…" value={form.deck} onChange={e=>setForm(f=>({...f,deck:e.target.value}))}/>
+              </div>
+              <div className="frow">
+                <div className="fg">
+                  <label className="flbl">Byline</label>
+                  <input placeholder="Your name or pen name…" value={form.author} onChange={e=>setForm(f=>({...f,author:e.target.value}))}/>
+                </div>
+                <div className="fg">
+                  <label className="flbl">Category</label>
+                  <select value={form.category} onChange={e=>setForm(f=>({...f,category:e.target.value}))}>
+                    {CATEGORIES.filter(c=>c!=="ALL").map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div className="fg">
+                <label className="flbl">Body Copy</label>
+                <div className="tbar">
+                  {[{cmd:"bold",icon:"B",s:{fontWeight:"bold"}},{cmd:"italic",icon:"I",s:{fontStyle:"italic"}},{cmd:"underline",icon:"U",s:{textDecoration:"underline"}}].map(a=>(
+                    <button key={a.cmd} className="tbtn" style={a.s} onMouseDown={e=>{e.preventDefault();execCmd(a.cmd)}}>{a.icon}</button>
+                  ))}
+                  <div className="tsep"/>
+                  <button className="tbtn" onMouseDown={e=>{e.preventDefault();execCmd("insertUnorderedList")}}>≡</button>
+                  <button className="tbtn" onMouseDown={e=>{e.preventDefault();execCmd("justifyFull")}}>⬛</button>
+                  <div className="tsep"/>
+                  <button className="tbtn" style={{fontSize:11,width:36}} onMouseDown={e=>{e.preventDefault();execCmd("formatBlock","h2")}}>H2</button>
+                  <button className="tbtn" style={{fontSize:11,width:36}} onMouseDown={e=>{e.preventDefault();execCmd("formatBlock","p")}}>¶</button>
+                  <div className="tsep"/>
+                  <button className="tbtn" style={{fontSize:11,width:32}} onMouseDown={e=>{e.preventDefault();execCmd("removeFormat")}}>✕F</button>
+                </div>
+                <div ref={editorRef} className="reditor" contentEditable suppressContentEditableWarning data-ph="Start writing your story here…"/>
+              </div>
+              <div style={{display:"flex",gap:10,flexWrap:"wrap",marginTop:8}}>
+                <button className="btn btn-r" style={{fontSize:13,padding:"11px 24px"}} onClick={savePost} disabled={saving}>
+                  {saving?"⏳ SAVING…":"✓ PUBLISH STORY"}
+                </button>
+                <button className="btn btn-dk" onClick={()=>setView("list")}>CANCEL</button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
