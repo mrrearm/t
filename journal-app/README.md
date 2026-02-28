@@ -1,18 +1,18 @@
-# 📰 The Daily Journal
+# 📰 The Daily Journal — Backend
 
-Tabloid-style personal journaling app with Express backend + SQLite database.
+Stack: **Node.js + Express + JSON file database** (zero dipendenze native, deploy ovunque)
 
 ---
 
-## 🚀 Deploy su Railway (gratis, 3 minuti)
+## 🚀 Deploy su Railway
 
-**1. Crea account su [railway.app](https://railway.app)**
+### Metodo 1 — GitHub (consigliato)
+1. Crea un repo su GitHub e carica questi file
+2. Vai su [railway.app](https://railway.app) → **New Project** → **Deploy from GitHub repo**
+3. Seleziona il repo → il deploy parte automaticamente
+4. In 1-2 minuti hai l'URL pubblico
 
-**2. Crea un nuovo progetto:**
-```
-New Project → Deploy from GitHub repo
-```
-oppure installa la CLI:
+### Metodo 2 — CLI
 ```bash
 npm install -g @railway/cli
 railway login
@@ -20,46 +20,37 @@ railway init
 railway up
 ```
 
-**3. Railway ti darà un URL pubblico** tipo `https://journal-production.up.railway.app`
+---
+
+## 🟢 Deploy su Render
+
+1. Vai su [render.com](https://render.com) → **New Web Service**
+2. Collega il repo GitHub
+3. Impostazioni:
+   - **Build Command:** `npm install`
+   - **Start Command:** `node server.js`
+   - **Environment:** Node
 
 ---
 
-## 🟢 Deploy su Render (alternativa gratuita)
-
-**1. Vai su [render.com](https://render.com) → New Web Service**
-
-**2. Collega il tuo repo GitHub**
-
-**3. Impostazioni:**
-- Build Command: `npm install`
-- Start Command: `npm start`
-- Environment: `Node`
-
----
-
-## 💻 Esecuzione locale
+## 💻 Locale
 
 ```bash
-# Installa dipendenze
 npm install
-
-# Avvia il server
-npm start
-
-# Apri il browser su
-http://localhost:3000
+node server.js
+# → http://localhost:3000
 ```
 
 ---
 
-## 🔌 API Endpoints
+## 🔌 API
 
-| Metodo | Path | Descrizione |
-|--------|------|-------------|
-| GET | `/api/posts` | Lista tutti i post |
-| GET | `/api/posts?category=WORLD` | Filtra per categoria |
-| GET | `/api/posts?search=testo` | Cerca nei post |
-| GET | `/api/posts/:id` | Singolo post |
+| Metodo | Endpoint | Descrizione |
+|--------|----------|-------------|
+| GET | `/api/posts` | Tutti i post |
+| GET | `/api/posts?category=WORLD` | Per categoria |
+| GET | `/api/posts?search=testo` | Ricerca |
+| GET | `/api/posts/:id` | Post singolo |
 | POST | `/api/posts` | Crea post |
 | PUT | `/api/posts/:id` | Modifica post |
 | DELETE | `/api/posts/:id` | Elimina post |
@@ -67,23 +58,14 @@ http://localhost:3000
 
 ---
 
-## 🗃 Struttura
+## 📁 Struttura
 
 ```
 journal-app/
-├── server.js          # Express backend + SQLite
+├── server.js        ← Express API + JSON DB
 ├── public/
-│   └── index.html     # Frontend React (single page)
+│   └── index.html   ← Frontend React
 ├── package.json
-├── .env               # Variabili d'ambiente
-└── journal.db         # Database SQLite (auto-creato)
-```
-
----
-
-## ⚙️ Variabili d'ambiente
-
-```env
-PORT=3000
-DB_PATH=./journal.db
+├── railway.toml     ← Config Railway
+└── db.json          ← Database (auto-creato)
 ```
