@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Esperienza Terzo Tipo</title>
+
+<style>
+body { background:#030510; color:white; font-family:Arial; text-align:center; }
+.step-card { display:none; padding:50px; }
+.step-card.active { display:block; }
+textarea { width:90%; height:120px; margin-top:15px; }
+button { padding:12px 25px; margin:10px; cursor:pointer; }
+#thanks { display:none; padding:50px; }
+</style>
+</head>
+<body>
+
+<section id="form-section">
+
+<form id="myForm" method="POST" target="hiddenFrame"
+action="https://script.google.com/macros/s/AKfycbx-2VRIT_Kkg_2yWQy5L67AGagUKMFsSJsTc5ob6dtGFfSO0yx7ZcqEs8R2gz_AHMBn/exec">
+
+<div class="step-card active" id="step-1">
+<h2>1/11 Cosa hai avvertito?</h2>
+<textarea name="Domanda_1"></textarea><br>
+<button type="button" onclick="goTo(2)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-2">
+<h2>2/11 Segni fisici?</h2>
+<textarea name="Domanda_2"></textarea><br>
+<button type="button" onclick="goTo(1)">Indietro</button>
+<button type="button" onclick="goTo(3)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-3">
+<h2>3/11 Come ti senti fisicamente?</h2>
+<textarea name="Domanda_3"></textarea><br>
+<button type="button" onclick="goTo(2)">Indietro</button>
+<button type="button" onclick="goTo(4)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-4">
+<h2>4/11 Ti senti diversa?</h2>
+<textarea name="Domanda_4"></textarea><br>
+<button type="button" onclick="goTo(3)">Indietro</button>
+<button type="button" onclick="goTo(5)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-5">
+<h2>5/11 Periodo del contatto?</h2>
+<textarea name="Domanda_5"></textarea><br>
+<button type="button" onclick="goTo(4)">Indietro</button>
+<button type="button" onclick="goTo(6)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-6">
+<h2>6/11 Messaggio ricevuto?</h2>
+<textarea name="Domanda_6"></textarea><br>
+<button type="button" onclick="goTo(5)">Indietro</button>
+<button type="button" onclick="goTo(7)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-7">
+<h2>7/11 Cosa avresti voluto fare?</h2>
+<textarea name="Domanda_7"></textarea><br>
+<button type="button" onclick="goTo(6)">Indietro</button>
+<button type="button" onclick="goTo(8)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-8">
+<h2>8/11 Vicinanza a Dio (1-10)?</h2>
+<input type="number" name="Domanda_8" min="1" max="10" value="5"><br>
+<button type="button" onclick="goTo(7)">Indietro</button>
+<button type="button" onclick="goTo(9)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-9">
+<h2>9/11 Desideri per l'esistenza?</h2>
+<textarea name="Domanda_9"></textarea><br>
+<button type="button" onclick="goTo(8)">Indietro</button>
+<button type="button" onclick="goTo(10)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-10">
+<h2>10/11 Progetti di vita?</h2>
+<textarea name="Domanda_10"></textarea><br>
+<button type="button" onclick="goTo(9)">Indietro</button>
+<button type="button" onclick="goTo(11)">Avanti</button>
+</div>
+
+<div class="step-card" id="step-11">
+<h2>11/11 Cos'è l'anima?</h2>
+<textarea name="Domanda_11"></textarea><br>
+<button type="button" onclick="goTo(10)">Indietro</button>
+<button type="submit" onclick="showThanks()">Invia al Database</button>
+</div>
+
+</form>
+
+<iframe name="hiddenFrame" style="display:none;"></iframe>
+
+<div id="thanks">
+<h2>Trasmissione ricevuta correttamente.</h2>
+</div>
+
+</section>
+
+<script>
+function goTo(n){
+  document.querySelectorAll('.step-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('step-'+n).classList.add('active');
+}
+
+function showThanks(){
+  document.querySelectorAll('.step-card').forEach(c=>c.classList.remove('active'));
+  document.getElementById('thanks').style.display="block";
+}
+</script>
+
+</body>
+</html>
