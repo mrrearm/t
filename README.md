@@ -1,1 +1,1 @@
-Cyber Love, esempio di due pesciolini che si baciano. 
+CyberLove, esempio di animazione tra due pesciolini che si baciano. 
