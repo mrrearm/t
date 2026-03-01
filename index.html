@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberfish Neon Love</title>
+    <style>
+        :root {
+            --neon-blue: #00f2ff;
+            --neon-pink: #ff00e0;
+            --bg-color: #0d0d15;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
+            color: white;
+        }
+
+        /* TITOLO NEON CHE BRILLA */
+        .neon-title {
+            font-size: 3rem;
+            font-weight: 900;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 
+                0 0 7px #fff,
+                0 0 10px #fff,
+                0 0 21px #fff,
+                0 0 42px var(--neon-pink),
+                0 0 82px var(--neon-pink),
+                0 0 92px var(--neon-pink),
+                0 0 102px var(--neon-pink),
+                0 0 151px var(--neon-pink);
+            animation: flicker 2s infinite alternate;
+            margin-bottom: 40px;
+            letter-spacing: 5px;
+        }
+
+        @keyframes flicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+                text-shadow: 0 0 7px #fff, 0 0 10px #fff, 0 0 42px var(--neon-pink), 0 0 82px var(--neon-pink);
+            }
+            20%, 24%, 55% {       
+                text-shadow: none;
+            }
+        }
+
+        /* ACQUARIO RESPONSIVE */
+        .aquarium {
+            position: relative;
+            width: 90vw;
+            max-width: 700px;
+            height: 350px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
+        }
+
+        /* PESCIOLINI */
+        .fish {
+            position: absolute;
+            width: 120px;
+            transition: all 0.7s cubic-bezier(0.5, -0.2, 0.5, 1.2);
+            z-index: 5;
+        }
+
+        #fish-left {
+            left: 10%;
+            filter: drop-shadow(0 0 15px var(--neon-blue));
+            fill: none;
+            stroke: var(--neon-blue);
+        }
+
+        #fish-right {
+            right: 10%;
+            transform: scaleX(-1);
+            filter: drop-shadow(0 0 15px var(--neon-pink));
+            fill: none;
+            stroke: var(--neon-pink);
+        }
+
+        /* ANIMAZIONE BACIO */
+        .aquarium.kissing #fish-left {
+            left: calc(50% - 110px);
+            transform: rotate(-10deg);
+        }
+
+        .aquarium.kissing #fish-right {
+            right: calc(50% - 110px);
+            transform: scaleX(-1) rotate(-10deg);
+        }
+
+        /* CUORICINI FLUTTUANTI */
+        .heart {
+            position: absolute;
+            color: var(--neon-pink);
+            font-size: 1.8rem;
+            text-shadow: 0 0 10px var(--neon-pink);
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+            20% { opacity: 1; }
+            100% { transform: translate(calc(-50% + var(--x)), -200px) scale(1.5); opacity: 0; }
+        }
+
+        /* PULSANTE */
+        .btn-action {
+            margin-top: 40px;
+            padding: 15px 40px;
+            background: transparent;
+            color: #fff;
+            border: 2px solid #fff;
+            border-radius: 50px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            box-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        .btn-action:hover {
+            background: #fff;
+            color: var(--bg-color);
+            box-shadow: 0 0 30px #fff;
+        }
+
+        /* MOBILE FIX */
+        @media (max-width: 600px) {
+            .neon-title { font-size: 2rem; }
+            .fish { width: 80px; }
+            .aquarium.kissing #fish-left { left: calc(50% - 75px); }
+            .aquarium.kissing #fish-right { right: calc(50% - 75px); }
+        }
+    </style>
+</head>
+<body>
+
+    <h1 class="neon-title">CYBER LOVE</h1>
+
+    <div class="aquarium" id="stage">
+        <svg id="fish-left" class="fish" viewBox="0 0 100 60">
+            <path d="M10,30 Q30,5 60,15 T90,30 T60,45 T10,30 Z" stroke-width="2.5"/>
+            <circle cx="72" cy="25" r="3" fill="var(--neon-blue)"/>
+            <path d="M20,30 L5,15 M20,30 L5,45" stroke-width="3"/>
+            <line x1="40" y1="20" x2="40" y2="40" stroke-width="1" opacity="0.4"/>
+        </svg>
+
+        <svg id="fish-right" class="fish" viewBox="0 0 100 60">
+            <path d="M10,30 Q30,5 60,15 T90,30 T60,45 T10,30 Z" stroke-width="2.5"/>
+            <circle cx="72" cy="25" r="3" fill="var(--neon-pink)"/>
+            <path d="M20,30 L5,15 M20,30 L5,45" stroke-width="3"/>
+            <line x1="40" y1="20" x2="40" y2="40" stroke-width="1" opacity="0.4"/>
+        </svg>
+    </div>
+
+    <button class="btn-action" onclick="activateLove()">Falli Baciare</button>
+
+    <script>
+        let isActive = false;
+        let heartTimer;
+
+        function activateLove() {
+            const stage = document.getElementById('stage');
+            const btn = document.querySelector('.btn-action');
+            
+            if (!isActive) {
+                stage.classList.add('kissing');
+                btn.innerText = "Smetti";
+                isActive = true;
+                
+                // Inizia a generare cuoricini dopo un breve ritardo (quando si toccano)
+                setTimeout(() => {
+                    if(isActive) {
+                        spawnHearts();
+                        heartTimer = setInterval(spawnHearts, 800);
+                    }
+                }, 400);
+
+            } else {
+                stage.classList.remove('kissing');
+                btn.innerText = "Falli Baciare";
+                isActive = false;
+                clearInterval(heartTimer);
+            }
+        }
+
+        function spawnHearts() {
+            for (let i = 0; i < 5; i++) {
+                const heart = document.createElement('div');
+                heart.className = 'heart';
+                heart.innerHTML = '♥';
+                heart.style.left = '50%';
+                heart.style.top = '45%';
+                
+                // Posizione casuale orizzontale
+                const xMove = (Math.random() * 140 - 70) + 'px';
+                heart.style.setProperty('--x', xMove);
+                
+                // Animazione
+                const duration = (Math.random() * 1 + 1) + 's';
+                heart.style.animation = `floatUp ${duration} ease-out forwards`;
+                
+                stage.appendChild(heart);
+                
+                // Rimuovi dopo l'animazione
+                setTimeout(() => heart.remove(), 2000);
+            }
+        }
+    </script>
+
+</body>
+</html>
